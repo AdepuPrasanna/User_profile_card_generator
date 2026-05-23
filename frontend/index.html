@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cardsmith — Profile Card Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: #2a2a34;
+    --border-bright: #3d3d4d;
+    --text: #f0eff5;
+    --muted: #7c7c99;
+    --accent: #7fffb2;
+    --accent-dim: rgba(127,255,178,0.1);
+    --accent-border: rgba(127,255,178,0.25);
+    --danger: #ff5f6d;
+    --radius: 12px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* ── Header ── */
+  header {
+    padding: 1.5rem 2.5rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(13,13,15,0.85);
+  }
+
+  .logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .logo .dot {
+    width: 8px; height: 8px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 10px var(--accent);
+  }
+
+  .header-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border: 1px solid var(--border);
+    padding: 0.3em 0.7em;
+    border-radius: 100px;
+  }
+
+  /* ── Main layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    min-height: calc(100vh - 65px);
+  }
+
+  /* ── Form panel ── */
+  .form-panel {
+    border-right: 1px solid var(--border);
+    padding: 2.5rem 2rem;
+    overflow-y: auto;
+    position: sticky;
+    top: 65px;
+    height: calc(100vh - 65px);
+  }
+
+  .form-panel h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .form-subtitle {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+
+  /* ── Field groups ── */
+  .field-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  .field-grid .full { grid-column: 1 / -1; }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 1rem;
+  }
+
+  label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  label .req { color: var(--accent); margin-left: 2px; }
+  label .opt { color: var(--border-bright); font-weight: 400; letter-spacing: 0; text-transform: none; margin-left: 4px; font-size: 0.68rem; }
+
+  input, textarea {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    padding: 0.65rem 0.85rem;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+
+  input::placeholder, textarea::placeholder { color: var(--muted); }
+
+  input:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-dim);
+  }
+
+  textarea {
+    resize: none;
+    min-height: 90px;
+    line-height: 1.6;
+  }
+
+  .char-count {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    margin-top: 0.2rem;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .char-count.warn { color: var(--danger); }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 1.5rem 0;
+  }
+
+  .section-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--border-bright);
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── Submit button ── */
+  .btn-generate {
+    width: 100%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0.85rem;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+    margin-top: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    box-shadow: 0 0 20px rgba(127,255,178,0.15);
+  }
+
+  .btn-generate:hover {
+    opacity: 0.9;
+    box-shadow: 0 0 30px rgba(127,255,178,0.3);
+  }
+
+  .btn-generate:active { transform: scale(0.98); }
+  .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-generate .spinner {
+    width: 16px; height: 16px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    display: none;
+  }
+
+  .btn-generate.loading .spinner { display: block; }
+  .btn-generate.loading .btn-label { opacity: 0.6; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Error banner ── */
+  .error-box {
+    background: rgba(255,95,109,0.1);
+    border: 1px solid rgba(255,95,109,0.3);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: var(--danger);
+    margin-top: 1rem;
+    display: none;
+  }
+
+  .error-box.show { display: block; }
+
+  /* ── Cards panel ── */
+  .cards-panel {
+    padding: 2.5rem 2rem;
+    overflow-y: auto;
+  }
+
+  .cards-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+
+  .cards-header h2 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    font-weight: 500;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.2em 0.6em;
+    border-radius: 100px;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
+  /* ── Profile Card ── */
+  .profile-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    animation: card-appear 0.4s cubic-bezier(.34,1.4,.64,1) both;
+    position: relative;
+  }
+
+  @keyframes card-appear {
+    from { opacity: 0; transform: translateY(20px) scale(0.96); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .profile-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-bright);
+    box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  }
+
+  /* Colored top strip */
+  .card-strip {
+    height: 5px;
+    width: 100%;
+  }
+
+  .card-inner {
+    padding: 1.5rem;
+  }
+
+  /* Avatar + name row */
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .card-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.2rem;
+    color: white;
+    overflow: hidden;
+    border: 2px solid var(--border);
+  }
+
+  .card-avatar img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  .card-identity { flex: 1; min-width: 0; }
+
+  .card-name {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.15rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .card-username {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 0.15rem;
+  }
+
+  .card-role {
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 0.35rem;
+    padding: 0.2em 0.55em;
+    border-radius: 4px;
+    display: inline-block;
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+  }
+
+  /* Bio */
+  .card-bio {
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: #c8c8dc;
+    margin-bottom: 1.1rem;
+  }
+
+  /* Meta */
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .meta-item {
+    font-size: 0.75rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .meta-item a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .meta-item a:hover { text-decoration: underline; }
+
+  /* Tags */
+  .card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.1rem;
+  }
+
+  .tag {
+    font-size: 0.7rem;
+    font-family: 'DM Mono', monospace;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 0.2em 0.55em;
+    border-radius: 4px;
+  }
+
+  .tag::before { content: '#'; opacity: 0.5; }
+
+  /* Card footer */
+  .card-footer {
+    border-top: 1px solid var(--border);
+    padding-top: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--border-bright);
+  }
+
+  .card-num {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--border-bright);
+  }
+
+  .btn-delete {
+    background: none;
+    border: 1px solid transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    transition: color 0.15s, background 0.15s, border-color 0.15s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .btn-delete:hover {
+    color: var(--danger);
+    background: rgba(255,95,109,0.08);
+    border-color: rgba(255,95,109,0.2);
+  }
+
+  /* ── Empty state ── */
+  .empty-state {
+    grid-column: 1 / -1;
+    padding: 5rem 2rem;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .empty-state .empty-icon {
+    font-size: 3rem;
+    margin-bottom: 1.25rem;
+    opacity: 0.2;
+  }
+
+  .empty-state h3 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.25rem;
+    font-style: italic;
+    color: var(--border-bright);
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state p {
+    font-size: 0.875rem;
+  }
+
+  /* ── Toast ── */
+  #toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.7rem 1.4rem;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    transition: transform 0.35s cubic-bezier(.34,1.56,.64,1);
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+
+  #toast.show {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  #toast.success { border-color: var(--accent-border); color: var(--accent); }
+
+  /* ── Responsive ── */
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .form-panel { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="dot"></span> Cardsmith
+  </div>
+  <div class="header-tag">Profile Card Generator</div>
+</header>
+
+<div class="layout">
+
+  <!-- ── Form ── -->
+  <aside class="form-panel">
+    <h2>Build a Card</h2>
+    <p class="form-subtitle">Fill in the details and generate a profile card instantly.</p>
+
+    <div class="field-grid">
+      <!-- Required -->
+      <div class="field full">
+        <div class="section-label">Identity</div>
+      </div>
+
+      <div class="field">
+        <label>Full Name <span class="req">*</span></label>
+        <input type="text" id="f-name" placeholder="e.g. Aria Chen" maxlength="60">
+      </div>
+
+      <div class="field">
+        <label>Username <span class="req">*</span></label>
+        <input type="text" id="f-username" placeholder="@handle" maxlength="40">
+      </div>
+
+      <div class="field full">
+        <label>Bio <span class="req">*</span></label>
+        <textarea id="f-bio" placeholder="A short bio — what do you do, what drives you?" maxlength="280"></textarea>
+        <div class="char-count" id="bio-count">0 / 280</div>
+      </div>
+
+      <div class="field full">
+        <label>Role / Title <span class="opt">optional</span></label>
+        <input type="text" id="f-role" placeholder="e.g. Product Designer" maxlength="60">
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <div class="section-label">Details</div>
+
+    <div class="field-grid">
+      <div class="field">
+        <label>Location <span class="opt">optional</span></label>
+        <input type="text" id="f-location" placeholder="e.g. Tokyo, JP" maxlength="60">
+      </div>
+
+      <div class="field">
+        <label>Website <span class="opt">optional</span></label>
+        <input type="text" id="f-website" placeholder="https://..." maxlength="120">
+      </div>
+
+      <div class="field full">
+        <label>Photo URL <span class="opt">optional</span></label>
+        <input type="text" id="f-image" placeholder="https://i.pravatar.cc/200?img=5">
+      </div>
+
+      <div class="field full">
+        <label>Tags <span class="opt">optional — comma separated</span></label>
+        <input type="text" id="f-tags" placeholder="design, ux, coffee, code">
+      </div>
+    </div>
+
+    <button class="btn-generate" id="btn-generate">
+      <div class="spinner"></div>
+      <span class="btn-label">✦ Generate Card</span>
+    </button>
+
+    <div class="error-box" id="error-box"></div>
+  </aside>
+
+  <!-- ── Cards ── -->
+  <section class="cards-panel">
+    <div class="cards-header">
+      <h2>Generated Cards <span class="badge" id="card-count">0</span></h2>
+    </div>
+    <div class="cards-grid" id="cards-grid"></div>
+  </section>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API_CREATE  = '/api/profile';
+const API_LIST    = '/api/profiles';
+const API_DELETE  = (id) => `/api/profile/${id}`;
+
+let cards = [];
+
+// ── Char counter ─────────────────────────────
+document.getElementById('f-bio').addEventListener('input', function() {
+  const len = this.value.length;
+  const el = document.getElementById('bio-count');
+  el.textContent = `${len} / 280`;
+  el.className = 'char-count' + (len > 240 ? ' warn' : '');
+});
+
+// ── Toast ────────────────────────────────────
+function toast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = '', 2800);
+}
+
+// ── Escape HTML ──────────────────────────────
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+// ── Build card HTML ──────────────────────────
+function cardHTML(c) {
+  const avatarInner = c.image_url
+    ? `<img src="${esc(c.image_url)}" alt="${esc(c.name)}" onerror="this.parentElement.innerHTML='${esc(c.initials)}';">`
+    : esc(c.initials);
+
+  const metaItems = [];
+  if (c.location) metaItems.push(`<span class="meta-item">📍 ${esc(c.location)}</span>`);
+  if (c.website)  metaItems.push(`<span class="meta-item">🔗 <a href="${esc(c.website)}" target="_blank" rel="noopener">${esc(c.website.replace(/^https?:\/\//, ''))}</a></span>`);
+
+  const tagsHTML = c.tags.length
+    ? `<div class="card-tags">${c.tags.map(t => `<span class="tag">${esc(t)}</span>`).join('')}</div>`
+    : '';
+
+  const roleHTML = c.role
+    ? `<div class="card-role">${esc(c.role)}</div>`
+    : '';
+
+  return `
+    <div class="card-strip" style="background:${esc(c.avatar_color)};"></div>
+    <div class="card-inner">
+      <div class="card-header">
+        <div class="card-avatar" style="background:${esc(c.avatar_color)};">${avatarInner}</div>
+        <div class="card-identity">
+          <div class="card-name">${esc(c.name)}</div>
+          <div class="card-username">@${esc(c.username)}</div>
+          ${roleHTML}
+        </div>
+      </div>
+      <div class="card-bio">${esc(c.bio)}</div>
+      ${metaItems.length ? `<div class="card-meta">${metaItems.join('')}</div>` : ''}
+      ${tagsHTML}
+      <div class="card-footer">
+        <span class="card-date">${esc(c.created_at)}</span>
+        <span class="card-num">#${String(c.card_number).padStart(3,'0')}</span>
+        <button class="btn-delete" data-id="${esc(c.id)}">Remove</button>
+      </div>
+    </div>`;
+}
+
+// ── Render all cards ─────────────────────────
+function renderCards() {
+  const grid = document.getElementById('cards-grid');
+  document.getElementById('card-count').textContent = cards.length;
+
+  if (!cards.length) {
+    grid.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">◈</div>
+        <h3>No cards yet</h3>
+        <p>Fill out the form and hit <em>Generate Card</em> to get started.</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = '';
+  cards.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'profile-card';
+    el.style.animationDelay = `${i * 0.05}s`;
+    el.innerHTML = cardHTML(c);
+    el.querySelector('.btn-delete').addEventListener('click', () => removeCard(c.id));
+    grid.appendChild(el);
+  });
+}
+
+// ── Load existing cards ──────────────────────
+async function loadCards() {
+  try {
+    const res = await fetch(API_LIST);
+    cards = await res.json();
+    renderCards();
+  } catch { /* server might not be up yet */ }
+}
+
+// ── Submit form ──────────────────────────────
+document.getElementById('btn-generate').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-generate');
+  const err = document.getElementById('error-box');
+
+  const payload = {
+    name:      document.getElementById('f-name').value,
+    username:  document.getElementById('f-username').value,
+    bio:       document.getElementById('f-bio').value,
+    role:      document.getElementById('f-role').value,
+    location:  document.getElementById('f-location').value,
+    website:   document.getElementById('f-website').value,
+    image_url: document.getElementById('f-image').value,
+    tags:      document.getElementById('f-tags').value,
+  };
+
+  err.className = 'error-box';
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+  try {
+    const res = await fetch(API_CREATE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      // FastAPI validation errors
+      const detail = data.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map(e => e.msg).join(', ')
+        : (typeof detail === 'string' ? detail : 'Invalid input');
+      err.textContent = msg;
+      err.className = 'error-box show';
+      return;
+    }
+
+    const card = await res.json();
+    cards.unshift(card);
+    renderCards();
+    toast('Card generated ✦', 'success');
+
+    // Reset form
+    ['f-name','f-username','f-bio','f-role','f-location','f-website','f-image','f-tags']
+      .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('bio-count').textContent = '0 / 280';
+
+  } catch {
+    err.textContent = 'Could not reach the server. Is the backend running?';
+    err.className = 'error-box show';
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+  }
+});
+
+// ── Delete card ──────────────────────────────
+async function removeCard(id) {
+  try {
+    await fetch(API_DELETE(id), { method: 'DELETE' });
+    cards = cards.filter(c => c.id !== id);
+    renderCards();
+    toast('Card removed');
+  } catch {
+    toast('Could not delete card');
+  }
+}
+
+// ── Init ─────────────────────────────────────
+loadCards();
+</script>
+</body>
+</html>
